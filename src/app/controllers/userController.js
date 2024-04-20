@@ -1,21 +1,22 @@
 const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
 const userRepository = require('../repositories/userRepository');
+const adminRepository = require('../repositories/adminRepository');
 const schema = require('./validate');
-
-let sum = 0;
-let remainder;
 
 class UserController {
   // Irá criar um cadastro caso satisfaça todas as condições
   async create(request, response) {
+    let sum = 0;
+    let remainder;
+
     const {
       name, email, cpf, password, confirmPassword,
     } = request.body;
 
-    // Função que irá verifica se o CPF é válido
-    function verifyCPF() {
-      for (let i = 1; i <= 9; i++) {
+    try {
+      // Verificar se o CPF é válido
+      for (let i = 0; i <= 9; i++) {
         sum += Number(cpf.substring(i - 1, i)) * (11 - i);
       }
       remainder = (sum * 10) % 11;
@@ -25,11 +26,11 @@ class UserController {
       }
 
       if (remainder !== Number(cpf.substring(9, 10))) {
-        return response.status(400).json({ error: 'CPF inválido' });
+        return response.status(400).json({ error: 'CPF inválido!' });
       }
       sum = 0;
 
-      for (let i = 1; i <= 10; i++) {
+      for (let i = 0; i <= 10; i++) {
         sum += Number(cpf.substring(i - 1, i)) * (12 - i);
       }
       remainder = (sum * 10) % 11;
@@ -39,28 +40,31 @@ class UserController {
       }
 
       if (remainder !== Number(cpf.substring(10, 11))) {
-        return response.status(400).json({ error: 'CPF inválido' });
+        return response.status(400).json({ error: 'CPF inválido!' });
       }
 
-      // Erro em CPF formados por uma sequência de numeros iguais
       if (cpf.length !== 11 || !Array.from(cpf).filter((e) => e !== cpf[0]).length) {
-        return response.status(400).json({ error: 'CPF inválido' });
+        return response.status(400).json({ error: 'CPF inválido!' });
       }
+    } catch (error) {
+      return response.status(400).json({ error: 'Ocorreu algum erro' });
     }
 
-    // Função que verifica se a senha tem letras, números e caracteres especiais
+    // Verifica se a senha tem letras, números e caracteres especiais
     // (?=(?:.*?[A-Z]){1}) - Mínimo 1 letra maiúscula
     // (?=(?:.*?[0-9]){1}) - Mínimo 1 número
     // (?=(?:.*?[!@#$%*()_+^&}{:;?.]){1})(?!.*\s)[0-9a-zA-Z!@#;$%*(){}_+^&] - Mínimo 1 caractere especial
-    function verifyPassword() {
+    try {
       const regexPassword = /^(?=(?:.*?[A-Z]){1})(?=(?:.*?[a-z]){1})(?=(?:.*?[0-9]){1})(?=(?:.*?[!@#$%*()_+^&}{:;?.]){1})(?!.*\s)[0-9a-zA-Z!@#$%;*(){}_+^&]*$/;
       if (!regexPassword.test(password)) {
         return response.status(400).json({ error: 'A senha deve conter pelo menos uma letra maiúscula, uma letra minúscula, um número e um caractere especial.' });
       }
+    } catch (error) {
+      return response.status(400).json({ error: 'Ocorreu algum erro para verificar a senha' });
     }
 
     // Função que envia um email com um código
-    function sendEmail() {
+    try {
       const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
@@ -85,13 +89,15 @@ class UserController {
 
       // O que será enviado para o email
       const mailOptions = {
-        from: 'Rafael Mesquita <rafael.mesquita07@aluno.ifce.edu.br>',
+        from: '< Nome do Administrador > < < email.do.admin > >',
         to: email,
         subject: 'Código de Verificação',
         html: `Seu código de verificação é: <br><h1><strong>${code}</strong></h1>`,
       };
 
       transporter.sendMail(mailOptions, (err) => err);
+    } catch (error) {
+      return response.status(400).json({ error: 'Email não enviado' });
     }
 
     // Irá fazer validação dos dados digitados de acordo com o arquivo "validate.js"
@@ -104,12 +110,20 @@ class UserController {
     }
 
     // Verifica se email e cpf já estão cadastrados
-    const emailExists = await userRepository.findByEmail(email);
+    const emailPesquisador = await userRepository.findByEmail(email);
+    const emailAdmin = await adminRepository.findByEmail(email);
+
+    const emailExists = emailPesquisador || emailAdmin;
+
     if (emailExists) {
       return response.status(400).json({ error: 'E-mail já está cadastrado' });
     }
 
-    const cpfExists = await userRepository.findByCPF(cpf);
+    const cpfPesquisador = await userRepository.findByCPF(cpf);
+    const cpfAdmin = await adminRepository.findByCPF(cpf);
+
+    const cpfExists = cpfPesquisador || cpfAdmin;
+
     if (cpfExists) {
       return response.status(400).json({ error: 'CPF já está cadastrado' });
     }
@@ -123,10 +137,6 @@ class UserController {
     const user = await userRepository.create({
       name, email, cpf, password: bcrypt.hashSync(request.body.password), confirmPassword: bcrypt.hashSync(request.body.confirmPassword),
     });
-
-    verifyCPF();
-    verifyPassword();
-    sendEmail();
 
     response.json(user);
   }
