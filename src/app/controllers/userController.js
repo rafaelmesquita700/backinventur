@@ -47,7 +47,7 @@ class UserController {
         return response.status(400).json({ error: 'CPF inválido!' });
       }
     } catch (error) {
-      return response.status(400).json({ error: 'Ocorreu algum erro' });
+      return response.status(400).json({ error: 'Ocorreu algum erro para verificar o CPF.' });
     }
 
     // Verifica se a senha tem letras, números e caracteres especiais
@@ -60,21 +60,54 @@ class UserController {
         return response.status(400).json({ error: 'A senha deve conter pelo menos uma letra maiúscula, uma letra minúscula, um número e um caractere especial.' });
       }
     } catch (error) {
-      return response.status(400).json({ error: 'Ocorreu algum erro para verificar a senha' });
+      return response.status(400).json({ error: 'Ocorreu algum erro para verificar a senha.' });
     }
 
-    // Função que envia um email com um código
+    // Irá fazer validação dos dados digitados de acordo com o arquivo "validate.js"
+    const { error } = schema.validate({
+      name, email, cpf, password, confirmPassword,
+    });
+
+    if (error || !name || !email || !cpf || !password || !confirmPassword) {
+      return response.status(400).json({ error: 'Preencha todos os campos.' });
+    }
+
+    // Verifica se email e cpf já estão cadastrados
+    const emailPesquisador = await userRepository.findByEmail(email);
+    const emailAdmin = await adminRepository.findByEmail(email);
+
+    const emailExists = emailPesquisador || emailAdmin;
+
+    if (emailExists) {
+      return response.status(400).json({ error: 'E-mail já está cadastrado.' });
+    }
+
+    const cpfPesquisador = await userRepository.findByCPF(cpf);
+    const cpfAdmin = await adminRepository.findByCPF(cpf);
+
+    const cpfExists = cpfPesquisador || cpfAdmin;
+
+    if (cpfExists) {
+      return response.status(400).json({ error: 'CPF já está cadastrado.' });
+    }
+
+    // Verifica se as senhas digitadas são iguais
+    if (password !== confirmPassword) {
+      return response.status(400).json({ error: 'As senhas digitadas não correspondem.' });
+    }
+
+    // Envia um email com um código
     try {
       const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
           type: 'OAuth2',
-          user: '< email do usuário >',
-          pass: '< senha do usuário >',
-          clientId: '< clientId conta google >',
-          clientSecret: '< clienteSecret conta google >',
-          refreshToken: '< refreshToken conta google >',
-          accessToken: '< accessToken conta google >',
+          user: 'email do administrador',
+          pass: 'senha do administrador',
+          clientId: '641051456724-9vl7kr1kpj8c65mo3ii4qrrb75hfgigi.apps.googleusercontent.com',
+          clientSecret: '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',
+          refreshToken: 'refreshToken do administrador',
+          accessToken: 'accessToken do administrador',
         },
       });
 
@@ -95,47 +128,79 @@ class UserController {
         html: `Seu código de verificação é: <br><h1><strong>${code}</strong></h1>`,
       };
 
-      transporter.sendMail(mailOptions, (err) => err);
-    } catch (error) {
-      return response.status(400).json({ error: 'Email não enviado' });
+      transporter.sendMail(mailOptions, () => response.status(200));
+    } catch (err) {
+      return response.status(400).json(err);
     }
 
-    // Irá fazer validação dos dados digitados de acordo com o arquivo "validate.js"
+    // Caso as validações estajam tudo corretas cria um novo usuário
+    const user = await userRepository.create({
+      name, email, cpf, password: bcrypt.hashSync(request.body.password), confirmPassword: bcrypt.hashSync(request.body.confirmPassword),
+    });
+
+    response.json(user);
+  }
+
+  // Deletar usuário
+  async delete(request, response) {
+    const { cpf } = request.params;
+
+    const user = await userRepository.findByCPF(cpf);
+
+    if (!user) {
+      // 404: Sem conteúdo
+      return response.status(404).json({ error: 'Usuário não encontrado.' });
+    }
+
+    await userRepository.delete(cpf);
+    response.sendStatus(204);
+  }
+
+  // Alterar dados cadastrados
+  async update(request, response) {
+    const { cpf } = request.params;
+
+    const {
+      name, email, password, confirmPassword,
+    } = request.body;
+
+    const userExists = await userRepository.findByCPF(cpf);
+    if (!userExists) {
+      return response.status(404).json({ error: 'Usuário não encontrado.' });
+    }
+
+    try {
+      const regexPassword = /^(?=(?:.*?[A-Z]){1})(?=(?:.*?[a-z]){1})(?=(?:.*?[0-9]){1})(?=(?:.*?[!@#$%*()_+^&}{:;?.]){1})(?!.*\s)[0-9a-zA-Z!@#$%;*(){}_+^&]*$/;
+      if (!regexPassword.test(password)) {
+        return response.status(400).json({ error: 'A senha deve conter pelo menos uma letra maiúscula, uma letra minúscula, um número e um caractere especial.' });
+      }
+    } catch (error) {
+      return response.status(400).json({ error: 'Ocorreu algum erro para verificar a senha.' });
+    }
+
     const { error } = schema.validate({
       name, email, cpf, password, confirmPassword,
     });
 
-    if (error || !name || !email || !cpf || !password || !confirmPassword) {
-      return response.status(400).json({ error: 'Preencha todos os campos' });
+    if (error || !name || !email || !password || !confirmPassword) {
+      return response.status(400).json({ error: 'Preencha todos os campos.' });
     }
 
-    // Verifica se email e cpf já estão cadastrados
     const emailPesquisador = await userRepository.findByEmail(email);
     const emailAdmin = await adminRepository.findByEmail(email);
 
     const emailExists = emailPesquisador || emailAdmin;
 
     if (emailExists) {
-      return response.status(400).json({ error: 'E-mail já está cadastrado' });
+      return response.status(400).json({ error: 'E-mail já está cadastrado.' });
     }
 
-    const cpfPesquisador = await userRepository.findByCPF(cpf);
-    const cpfAdmin = await adminRepository.findByCPF(cpf);
-
-    const cpfExists = cpfPesquisador || cpfAdmin;
-
-    if (cpfExists) {
-      return response.status(400).json({ error: 'CPF já está cadastrado' });
-    }
-
-    // Verifica se as senhas digitadas são iguais
     if (password !== confirmPassword) {
-      return response.status(400).json({ error: 'As senhas digitadas não correspondem' });
+      return response.status(400).json({ error: 'As senhas digitadas não correspondem.' });
     }
 
-    // Caso as validações estajam tudo corretas cria um novo usuário
-    const user = await userRepository.create({
-      name, email, cpf, password: bcrypt.hashSync(request.body.password), confirmPassword: bcrypt.hashSync(request.body.confirmPassword),
+    const user = await userRepository.update(cpf, {
+      name, email, password: bcrypt.hashSync(request.body.password), confirmPassword: bcrypt.hashSync(request.body.confirmPassword),
     });
 
     response.json(user);
