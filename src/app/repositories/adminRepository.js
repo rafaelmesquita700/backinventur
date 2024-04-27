@@ -1,5 +1,8 @@
+const { v4 } = require('uuid');
+
 let users = [
   {
+    id: v4(),
     name: 'Maria',
     email: 'maria@email.com',
     cpf: '12345678912',
@@ -12,6 +15,14 @@ class AdminRepository {
   findAll() {
     return new Promise((resolve) => {
       resolve(users);
+    });
+  }
+
+  findById(id) {
+    return new Promise((resolve) => {
+      resolve(
+        users.find((user) => user.id === id),
+      );
     });
   }
 
@@ -44,6 +55,7 @@ class AdminRepository {
   }) {
     return new Promise((resolve) => {
       const newUser = {
+        id: v4(),
         name,
         email,
         cpf,
@@ -56,18 +68,19 @@ class AdminRepository {
     });
   }
 
-  delete(cpf) {
+  delete(id) {
     return new Promise((resolve) => {
-      users = users.filter((user) => user.cpf !== cpf);
+      users = users.filter((user) => user.id !== id);
       resolve();
     });
   }
 
-  update(cpf, {
-    name, email, password, confirmPassword,
+  update(id, {
+    name, email, cpf, password, confirmPassword,
   }) {
     return new Promise((resolve) => {
       const updateUser = {
+        id,
         name,
         email,
         cpf,
@@ -76,7 +89,7 @@ class AdminRepository {
       };
 
       users = users.map((user) => (
-        user.cpf === cpf ? updateUser : user
+        user.id === id ? updateUser : user
       ));
 
       resolve(updateUser);

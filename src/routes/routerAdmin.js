@@ -11,9 +11,9 @@ router.get('/users/:id', adminController.show);
 router.get('/users/search/cpf/:cpf', adminController.show);
 router.get('/users/search/name/:name', adminController.show);
 router.get('/users/search/email/:email', adminController.show);
-router.delete('/users/delete/admin/:cpf', adminController.delete);
-router.delete('/users/delete/pesquisador/:cpf', userController.delete);
-router.put('/users/update/admin/:cpf', adminController.update);
-router.put('/users/update/pesquisador/:cpf', userController.update);
+router.delete('/users/delete/admin/:id', adminController.delete);
+router.delete('/users/delete/pesquisador/:id', userController.delete);
+router.put('/users/update/admin/:id', adminController.update);
+router.put('/users/update/pesquisador/:id', userController.update);
 
 module.exports = router;

@@ -143,30 +143,69 @@ class UserController {
 
   // Deletar usuário
   async delete(request, response) {
-    const { cpf } = request.params;
+    const { id } = request.params;
 
-    const user = await userRepository.findByCPF(cpf);
+    const user = await userRepository.findById(id);
 
     if (!user) {
       // 404: Sem conteúdo
       return response.status(404).json({ error: 'Usuário não encontrado.' });
     }
 
-    await userRepository.delete(cpf);
+    await userRepository.delete(id);
     response.sendStatus(204);
   }
 
   // Alterar dados cadastrados
   async update(request, response) {
-    const { cpf } = request.params;
+    let sum = 0;
+    let remainder;
+
+    const { id } = request.params;
 
     const {
-      name, email, password, confirmPassword,
+      name, email, cpf, password, confirmPassword,
     } = request.body;
 
-    const userExists = await userRepository.findByCPF(cpf);
+    const userExists = await userRepository.findById(id);
     if (!userExists) {
       return response.status(404).json({ error: 'Usuário não encontrado.' });
+    }
+
+    try {
+      // Verificar se o CPF é válido
+      for (let i = 0; i <= 9; i++) {
+        sum += Number(cpf.substring(i - 1, i)) * (11 - i);
+      }
+      remainder = (sum * 10) % 11;
+
+      if ((remainder === 10) || (remainder === 11)) {
+        remainder = 0;
+      }
+
+      if (remainder !== Number(cpf.substring(9, 10))) {
+        return response.status(400).json({ error: 'CPF inválido!' });
+      }
+      sum = 0;
+
+      for (let i = 0; i <= 10; i++) {
+        sum += Number(cpf.substring(i - 1, i)) * (12 - i);
+      }
+      remainder = (sum * 10) % 11;
+
+      if ((remainder === 10) || (remainder === 11)) {
+        remainder = 0;
+      }
+
+      if (remainder !== Number(cpf.substring(10, 11))) {
+        return response.status(400).json({ error: 'CPF inválido!' });
+      }
+
+      if (cpf.length !== 11 || !Array.from(cpf).filter((e) => e !== cpf[0]).length) {
+        return response.status(400).json({ error: 'CPF inválido!' });
+      }
+    } catch (error) {
+      return response.status(400).json({ error: 'Ocorreu algum erro para verificar o CPF.' });
     }
 
     try {
@@ -182,25 +221,32 @@ class UserController {
       name, email, cpf, password, confirmPassword,
     });
 
-    if (error || !name || !email || !password || !confirmPassword) {
+    if (password !== confirmPassword) {
+      return response.status(400).json({ error: 'As senhas digitadas não correspondem.' });
+    }
+
+    if (error || !name || !email || !cpf || !password || !confirmPassword) {
       return response.status(400).json({ error: 'Preencha todos os campos.' });
     }
 
     const emailPesquisador = await userRepository.findByEmail(email);
     const emailAdmin = await adminRepository.findByEmail(email);
+    const cpfPesquisador = await userRepository.findByCPF(cpf);
+    const cpfAdmin = await adminRepository.findByCPF(cpf);
 
     const emailExists = emailPesquisador || emailAdmin;
+    const cpfExists = cpfPesquisador || cpfAdmin;
 
-    if (emailExists) {
+    if (emailExists && emailExists.id !== id) {
       return response.status(400).json({ error: 'E-mail já está cadastrado.' });
     }
 
-    if (password !== confirmPassword) {
-      return response.status(400).json({ error: 'As senhas digitadas não correspondem.' });
+    if (cpfExists && cpfExists.id !== id) {
+      return response.status(400).json({ error: 'CPF já está cadastrado.' });
     }
 
-    const user = await userRepository.update(cpf, {
-      name, email, password: bcrypt.hashSync(request.body.password), confirmPassword: bcrypt.hashSync(request.body.confirmPassword),
+    const user = await userRepository.update(id, {
+      name, email, cpf, password: bcrypt.hashSync(request.body.password), confirmPassword: bcrypt.hashSync(request.body.confirmPassword),
     });
 
     response.json(user);
