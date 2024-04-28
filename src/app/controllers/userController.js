@@ -102,12 +102,12 @@ class UserController {
         service: 'gmail',
         auth: {
           type: 'OAuth2',
-          user: 'email do administrador',
-          pass: 'senha do administrador',
-          clientId: '641051456724-9vl7kr1kpj8c65mo3ii4qrrb75hfgigi.apps.googleusercontent.com',
-          clientSecret: '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',
-          refreshToken: 'refreshToken do administrador',
-          accessToken: 'accessToken do administrador',
+          user: process.env.EMAIL,
+          pass: process.env.PASSWORD,
+          clientId: process.env.OAUTH_CLIENTID,
+          clientSecret: process.env.OAUTH_CLIENT_SECRET,
+          refreshToken: process.env.OAUTH_REFRESH_TOKEN,
+          accessToken: process.env.OAUTH_ACCESS_TOKEN,
         },
       });
 
@@ -122,7 +122,7 @@ class UserController {
 
       // O que será enviado para o email
       const mailOptions = {
-        from: '< Nome do Administrador > < < email.do.admin > >',
+        from: 'InvenTur <inventur@tiangua.ifce.edu.br>',
         to: email,
         subject: 'Código de Verificação',
         html: `Seu código de verificação é: <br><h1><strong>${code}</strong></h1>`,
