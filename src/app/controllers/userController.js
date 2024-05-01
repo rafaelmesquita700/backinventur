@@ -107,7 +107,6 @@ class UserController {
           clientId: process.env.OAUTH_CLIENTID,
           clientSecret: process.env.OAUTH_CLIENT_SECRET,
           refreshToken: process.env.OAUTH_REFRESH_TOKEN,
-          accessToken: process.env.OAUTH_ACCESS_TOKEN,
         },
       });
 
@@ -250,6 +249,24 @@ class UserController {
     });
 
     response.json(user);
+  }
+
+  async login(request, response) {
+    const {
+      cpf, password,
+    } = request.body;
+
+    const selectUser = await userRepository.findByCPF(cpf);
+    if (!selectUser) {
+      return response.status(400).json('CPF inválido ou não cadastrado.');
+    }
+
+    const passwordAndCpf = bcrypt.compareSync(password, selectUser.password);
+    if (!passwordAndCpf || passwordAndCpf.password === password) {
+      return response.status(400).json('Senha incorreta.');
+    }
+
+    response.json('Usuário logado');
   }
 }
 

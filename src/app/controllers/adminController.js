@@ -25,22 +25,37 @@ class AdminController {
       id, cpf, name, email,
     } = request.params;
 
-    const userAdminId = await adminRepository.findById(id);
-    const userPesquisadorId = await userRepository.findById(id);
-    const userAdminCPF = await adminRepository.findByCPF(cpf);
-    const userPesquisadorCPF = await userRepository.findByCPF(cpf);
-    const userNameAdmin = await adminRepository.findByName(name);
-    const userNamePesquisador = await userRepository.findByName(name);
-    const userAdminEmail = await adminRepository.findByEmail(email);
-    const userPesquisadorEmail = await userRepository.findByEmail(email);
+    try {
+      const [
+        userAdminId,
+        userPesquisadorId,
+        userAdminCPF,
+        userPesquisadorCPF,
+        userNameAdmin,
+        userNamePesquisador,
+        userAdminEmail,
+        userPesquisadorEmail,
+      ] = await Promise.all([
+        adminRepository.findById(id),
+        userRepository.findById(id),
+        adminRepository.findByCPF(cpf),
+        userRepository.findByCPF(cpf),
+        adminRepository.findByName(name),
+        userRepository.findByName(name),
+        adminRepository.findByEmail(email),
+        userRepository.findByEmail(email),
+      ]);
 
-    const user = userAdminId || userPesquisadorId || userAdminCPF || userPesquisadorCPF || userNameAdmin || userNamePesquisador || userAdminEmail || userPesquisadorEmail;
+      const user = userAdminId || userPesquisadorId || userAdminCPF || userPesquisadorCPF || userNameAdmin || userNamePesquisador || userAdminEmail || userPesquisadorEmail;
 
-    if (!user) {
-      return response.status(404).json({ error: 'Usuário não encontrado.' });
+      if (!user) {
+        return response.status(404).json({ error: 'Usuário não encontrado.' });
+      }
+
+      response.json(user);
+    } catch (error) {
+      response.status(500).json({ error: 'Erro ao buscar usuário.' });
     }
-
-    response.json(user);
   }
 
   // Cria um usuário administrador
@@ -276,6 +291,24 @@ class AdminController {
     });
 
     response.json(user);
+  }
+
+  async login(request, response) {
+    const {
+      cpf, password,
+    } = request.body;
+
+    const selectUser = await adminRepository.findByCPF(cpf);
+    if (!selectUser) {
+      return response.status(400).json('CPF inválido ou não cadastrado.');
+    }
+
+    const passwordAndCpf = bcrypt.compareSync(password, selectUser.password);
+    if (!passwordAndCpf || passwordAndCpf.password === password) {
+      return response.status(400).json('Senha incorreta.');
+    }
+
+    response.json('Usuário logado');
   }
 }
 

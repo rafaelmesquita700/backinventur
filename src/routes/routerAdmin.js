@@ -15,5 +15,6 @@ router.delete('/users/delete/admin/:id', adminController.delete);
 router.delete('/users/delete/pesquisador/:id', userController.delete);
 router.put('/users/update/admin/:id', adminController.update);
 router.put('/users/update/pesquisador/:id', userController.update);
+router.post('/login/admin', adminController.login);
 
 module.exports = router;

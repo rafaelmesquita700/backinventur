@@ -1,15 +1,6 @@
 const { v4 } = require('uuid');
 
-let users = [
-  {
-    id: v4(),
-    name: 'João',
-    email: 'joao@email.com',
-    cpf: '12345678911',
-    password: '12345678',
-    confirmPassword: '12345678',
-  },
-];
+let users = [];
 
 class UserRepository {
   findAll() {
@@ -93,6 +84,12 @@ class UserRepository {
       ));
 
       resolve(updateUser);
+    });
+  }
+
+  login({ cpf }) {
+    return new Promise((resolve) => {
+      resolve(users.find((user) => user.cpf === cpf));
     });
   }
 }
